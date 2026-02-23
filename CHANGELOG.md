@@ -1,3 +1,9 @@
+## 1.0.0 (2026-02-23)
+
+### Features
+
+* replace acronym creator with AWS ASG instance refresh tool ([#1](https://github.com/williamsonpaul/aws-tools/issues/1)) ([a6a5abd](https://github.com/williamsonpaul/aws-tools/commit/a6a5abd0a600453db94350d8fd47eeb58f3cbe6a))
+
 ## [1.9.1](https://github.com/reaandrew/acronymcreator/compare/v1.9.0...v1.9.1) (2025-10-06)
 
 ### Bug Fixes
