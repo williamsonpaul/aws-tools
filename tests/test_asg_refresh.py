@@ -3,7 +3,7 @@ Tests for the ASG refresh core module.
 """
 
 import pytest
-from unittest.mock import MagicMock, patch, call
+from unittest.mock import MagicMock, patch
 from src.asg_refresh.core import ASGRefresh, RefreshOptions
 
 
@@ -153,8 +153,16 @@ class TestWaitForRefresh:
     def test_poll_then_success(self, mock_client, mock_sleep):
         mock_asg = MagicMock()
         mock_asg.describe_instance_refreshes.side_effect = [
-            {"InstanceRefreshes": [{"Status": "InProgress", "PercentageComplete": 50}]},
-            {"InstanceRefreshes": [{"Status": "Successful", "PercentageComplete": 100}]},
+            {
+                "InstanceRefreshes": [
+                    {"Status": "InProgress", "PercentageComplete": 50}
+                ]
+            },
+            {
+                "InstanceRefreshes": [
+                    {"Status": "Successful", "PercentageComplete": 100}
+                ]
+            },
         ]
         mock_client.return_value = mock_asg
 
