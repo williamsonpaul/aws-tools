@@ -118,9 +118,7 @@ class TestASGRefresh:
     @patch("src.asg_refresh.core.boto3.client")
     def test_describe_refresh_not_found(self, mock_client):
         mock_asg = MagicMock()
-        mock_asg.describe_instance_refreshes.return_value = {
-            "InstanceRefreshes": []
-        }
+        mock_asg.describe_instance_refreshes.return_value = {"InstanceRefreshes": []}
         mock_client.return_value = mock_asg
 
         refresher = ASGRefresh(region="us-east-1")
