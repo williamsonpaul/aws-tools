@@ -1,6 +1,6 @@
 # asg-refresh
 
-A CLI tool for initiating AWS Auto Scaling Group instance refreshes, packaged as both a Python package and a Docker container.
+A CLI tool for initiating and monitoring AWS Auto Scaling Group instance refreshes, packaged as both a Python package and a Docker container.
 
 [![CI](https://github.com/williamsonpaul/aws-tools/actions/workflows/ci.yml/badge.svg)](https://github.com/williamsonpaul/aws-tools/actions/workflows/ci.yml)
 [![Coverage](https://img.shields.io/badge/coverage-100%25-brightgreen)](https://github.com/williamsonpaul/aws-tools)
@@ -10,7 +10,7 @@ A CLI tool for initiating AWS Auto Scaling Group instance refreshes, packaged as
 
 This repository demonstrates GitGuardian integration in CI/CD workflows to prevent secrets from entering codebases. It serves as a template for teams implementing robust secret detection and automated release processes.
 
-The functional component is `asg-refresh`: a Python CLI tool that triggers a rolling instance refresh on an AWS Auto Scaling Group using the boto3 SDK.
+The functional component is `asg-refresh`: a Python CLI tool that triggers and monitors rolling instance refreshes on AWS Auto Scaling Groups using the boto3 SDK.
 
 ---
 
@@ -50,19 +50,21 @@ docker run --rm \
   -e AWS_ACCESS_KEY_ID \
   -e AWS_SECRET_ACCESS_KEY \
   -e AWS_DEFAULT_REGION \
-  ghcr.io/williamsonpaul/aws-tools:latest my-asg
+  ghcr.io/williamsonpaul/aws-tools:latest start my-asg
 ```
 
 ---
 
 ## CLI Usage
 
+`asg-refresh` has two subcommands: `start` and `check`.
+
+### `asg-refresh start`
+
+Start a rolling instance refresh on an Auto Scaling Group.
+
 ```
-Usage: asg-refresh [OPTIONS] ASG_NAME
-
-  Initiate an AWS Auto Scaling Group instance refresh.
-
-  ASG_NAME: The name of the Auto Scaling Group to refresh
+Usage: asg-refresh start [OPTIONS] ASG_NAME
 
 Options:
   --min-healthy-percentage INTEGER  Minimum percentage of healthy instances
@@ -76,38 +78,65 @@ Options:
   --help                            Show this message and exit.
 ```
 
-### Examples
+#### Examples
 
 ```bash
 # Basic refresh with defaults (90% min healthy)
-asg-refresh my-asg
+asg-refresh start my-asg
 
 # Custom min-healthy-percentage
-asg-refresh my-asg --min-healthy-percentage 80
+asg-refresh start my-asg --min-healthy-percentage 80
 
 # With instance warmup and skip-matching
-asg-refresh my-asg --instance-warmup 300 --skip-matching
+asg-refresh start my-asg --instance-warmup 300 --skip-matching
 
 # Specify region
-asg-refresh my-asg --region eu-west-1
+asg-refresh start my-asg --region eu-west-1
 
 # All options
-asg-refresh prod-asg \
+asg-refresh start prod-asg \
   --min-healthy-percentage 75 \
   --instance-warmup 120 \
   --skip-matching \
   --region us-east-1
 ```
 
-### Output
-
-The command outputs a JSON object on success:
+#### Output
 
 ```json
 {
   "InstanceRefreshId": "08b91e03-1234-abcd-efgh-f3ea4912b73c",
   "AutoScalingGroupName": "my-asg"
 }
+```
+
+### `asg-refresh check`
+
+Wait for an instance refresh to complete by polling until it reaches a terminal state. Status updates are printed to stderr; final JSON is written to stdout. Exits 0 on `Successful`, non-zero on `Failed`, `Cancelled`, or timeout.
+
+```
+Usage: asg-refresh check [OPTIONS] ASG_NAME REFRESH_ID
+
+Options:
+  --region TEXT       AWS region (defaults to environment/instance profile)
+  --interval INTEGER  Polling interval in seconds  [default: 30]
+  --timeout INTEGER   Maximum wait time in seconds  [default: 3600]
+  --help              Show this message and exit.
+```
+
+#### Examples
+
+```bash
+# Wait for a refresh to complete
+asg-refresh check my-asg 08b91e03-1234-abcd-efgh-f3ea4912b73c
+
+# Custom polling interval and timeout
+asg-refresh check my-asg 08b91e03-1234-abcd-efgh-f3ea4912b73c \
+  --interval 10 --timeout 600
+
+# Start and then wait in a CI pipeline
+REFRESH=$(asg-refresh start my-asg | jq -r .InstanceRefreshId)
+asg-refresh check my-asg "$REFRESH"
 ```
 
 ### Environment Variables
@@ -117,16 +146,19 @@ All options can be set via environment variables:
 | Option | Environment Variable |
 |--------|---------------------|
 | `ASG_NAME` (argument) | `ASG_NAME` |
+| `REFRESH_ID` (argument) | `INSTANCE_REFRESH_ID` |
 | `--min-healthy-percentage` | `MIN_HEALTHY_PERCENTAGE` |
 | `--instance-warmup` | `INSTANCE_WARMUP` |
 | `--skip-matching` | `SKIP_MATCHING` |
 | `--region` | `AWS_DEFAULT_REGION` |
+| `--interval` | `CHECK_INTERVAL` |
+| `--timeout` | `CHECK_TIMEOUT` |
 
 ```bash
 export ASG_NAME=my-asg
 export MIN_HEALTHY_PERCENTAGE=80
 export AWS_DEFAULT_REGION=us-east-1
-asg-refresh
+asg-refresh start
 ```
 
 ---
@@ -147,7 +179,7 @@ docker run --rm \
   -e AWS_ACCESS_KEY_ID=AKIA... \
   -e AWS_SECRET_ACCESS_KEY=... \
   -e AWS_DEFAULT_REGION=us-east-1 \
-  asg-refresh my-asg
+  asg-refresh start my-asg
 
 # Forwarding credentials from the host environment
 docker run --rm \
@@ -155,13 +187,13 @@ docker run --rm \
   -e AWS_SECRET_ACCESS_KEY \
   -e AWS_SESSION_TOKEN \
   -e AWS_DEFAULT_REGION \
-  asg-refresh my-asg --min-healthy-percentage 80
+  asg-refresh start my-asg --min-healthy-percentage 80
 
 # Using an AWS credentials file
 docker run --rm \
   -v ~/.aws:/root/.aws:ro \
   -e AWS_DEFAULT_REGION=eu-west-1 \
-  asg-refresh my-asg
+  asg-refresh start my-asg
 ```
 
 ### Run on EC2 with instance profile
@@ -169,7 +201,7 @@ docker run --rm \
 When running inside AWS (EC2, ECS, Lambda), boto3 picks up the instance profile automatically — no credentials needed:
 
 ```bash
-docker run --rm asg-refresh my-asg --region us-east-1
+docker run --rm asg-refresh start my-asg --region us-east-1
 ```
 
 ---
@@ -179,10 +211,12 @@ docker run --rm asg-refresh my-asg --region us-east-1
 ### AWS ASG Instance Refresh
 
 - **Rolling strategy**: Uses AWS `StartInstanceRefresh` with `Strategy: Rolling`
+- **Completion polling**: `check` subcommand waits for refresh to reach a terminal state
 - **Configurable health threshold**: Set minimum healthy percentage (default 90%)
 - **Instance warmup**: Optional warmup period for new instances
 - **Skip matching**: Skip instances already on the latest launch template
 - **JSON output**: Machine-readable output for scripting and CI pipelines
+- **CI/CD friendly**: Non-zero exit on failure/timeout for pipeline integration
 
 ### Security & Quality Guardrails
 
