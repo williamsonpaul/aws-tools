@@ -1,0 +1,21 @@
+# .coveragerc - picked up automatically by coverage.py
+[run]
+branch = true
+source = src
+data_file = /tmp/.coverage_precommit
+omit =
+    docs/scripts/*
+
+[report]
+fail_under = 80
+exclude_lines =
+    pragma: no cover
+    def __repr__
+    if self.debug:
+    if settings.DEBUG
+    raise AssertionError
+    raise NotImplementedError
+    if 0:
+    if __name__ == "__main__":
+    class .*Protocol\):
+    @(abc\.)?abstractmethod

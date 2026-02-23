@@ -1,0 +1,153 @@
+name: Auto-Fix CI Failures
+
+on:
+  workflow_run:
+    workflows: ["CI"]
+    types:
+      - completed
+
+concurrency:
+  group: auto-fix-${{ github.event.workflow_run.head_branch || github.run_id }}
+  cancel-in-progress: true
+
+permissions:
+  contents: write
+  pull-requests: write
+  actions: write
+
+jobs:
+  notify-claude:
+    name: Notify Claude GitHub Agent
+    runs-on: ubuntu-latest
+    if: ${{ github.event.workflow_run.conclusion == 'failure' && github.event.workflow_run.event == 'pull_request' }}
+
+    steps:
+    - name: Get PR details from workflow run
+      id: get-pr
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: |
+        RUN_ID="${{ github.event.workflow_run.id }}"
+
+        # Get PR number and branch from the workflow run object
+        PR_DATA=$(gh api /repos/${{ github.repository }}/actions/runs/$RUN_ID --jq '{number: .pull_requests[0].number, branch: .head_branch}')
+        PR_NUMBER=$(echo "$PR_DATA" | jq -r '.number')
+        PR_BRANCH=$(echo "$PR_DATA" | jq -r '.branch')
+
+        # Validate we got valid data
+        if [ -z "$PR_NUMBER" ] || [ "$PR_NUMBER" = "null" ]; then
+          echo "Error: Could not find PR for workflow run $RUN_ID"
+          exit 1
+        fi
+
+        echo "pr_number=$PR_NUMBER" >> $GITHUB_OUTPUT
+        echo "pr_branch=$PR_BRANCH" >> $GITHUB_OUTPUT
+        echo "Found PR #$PR_NUMBER on branch $PR_BRANCH"
+
+    - name: Skip if last commit is from auto-fix
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: |
+        RUN_ID="${{ github.event.workflow_run.id }}"
+        HEAD_SHA=$(gh api /repos/${{ github.repository }}/actions/runs/$RUN_ID --jq .head_sha)
+        AUTHOR=$(gh api /repos/${{ github.repository }}/commits/$HEAD_SHA --jq '.commit.author.name')
+        if [ "$AUTHOR" = "claude-bot" ]; then
+          echo "Latest commit is from claude-bot; skipping auto-fix to avoid loops."
+          exit 0
+        fi
+
+    - name: Checkout PR branch
+      uses: actions/checkout@v4
+      with:
+        ref: ${{ steps.get-pr.outputs.pr_branch }}
+        fetch-depth: 0
+        token: ${{ secrets.AUTO_FIX_PAT }}
+
+    - name: Prepare runtimes for validator
+      run: |
+        python3 -m pip install --upgrade pip
+        pip3 install black flake8 ggshield pyyaml pre-commit
+        echo "$HOME/.local/bin" >> $GITHUB_PATH
+
+    - name: Setup Go
+      uses: actions/setup-go@v5
+      with:
+        go-version: '1.21'
+        cache: false
+
+    - name: Install lefthook
+      run: |
+        go install github.com/evilmartians/lefthook@latest
+        echo "$(go env GOPATH)/bin" >> $GITHUB_PATH
+
+    - name: Configure git author for bot commits
+      run: |
+        git config user.name "claude-bot"
+        git config user.email "claude-bot@users.noreply.github.com"
+
+    - name: Invoke Claude to fix CI failure
+      id: claude-fix
+      uses: anthropics/claude-code-action@v1
+      with:
+        anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+        github_token: ${{ secrets.AUTO_FIX_PAT }}
+        claude_args: |
+          --allowedTools "Read,Glob,Grep,Edit,Write,MultiEdit,WebFetch,WebSearch,Bash(*)"
+          --dangerously-skip-permissions
+          --max-turns 50
+        prompt: |
+          CI workflow failed for PR #${{ steps.get-pr.outputs.pr_number }}.
+
+          Branch: ${{ steps.get-pr.outputs.pr_branch }}
+          Run: https://github.com/${{ github.repository }}/actions/runs/${{ github.event.workflow_run.id }}
+
+          Follow this workflow:
+
+          1. ANALYZE FAILURE
+             - First, get CI logs: gh run view ${{ github.event.workflow_run.id }} --log | tail -100
+             - Identify root cause from logs (don't read full files yet)
+             - Only read specific files if error location is unclear
+
+          2. FIX THE ISSUE
+             - Edit the problematic file(s) directly
+             - Minimum necessary changes
+             - If adding new dependencies/tools:
+               * Update pre-commit-config.yaml
+               * Update lefthook.yml (if tool needs PATH access)
+               * Update pyproject.toml [project.optional-dependencies]
+             - If implementing new CLI functionality, update README.md with:
+               * Examples demonstrating the new feature
+               * Usage patterns consistent with existing documentation
+               * Real-world use cases where applicable
+               * Follow the same detailed style as existing CLI examples
+
+          3. VALIDATE FIXES
+             - Run all pre-commit hooks: SKIP=ggshield pre-commit run --all-files
+             - Auto-stage any files modified by hooks
+             - Ensure all hooks pass
+
+          4. COMMIT AND PUSH (only if validation passes)
+             - Conventional commit: "fix: <brief>"
+             - Co-Authored-By: Claude <noreply@anthropic.com>
+             - Push to ${{ steps.get-pr.outputs.pr_branch }}
+
+          CRITICAL RULES:
+          - Steps must be executed in order
+          - Do NOT skip validation (step 3)
+          - Do NOT commit if pre-commit hooks fail
+          - Do NOT manually trigger workflows - your commit will automatically trigger CI
+          - ALWAYS update documentation when adding new features
+
+          EFFICIENCY RULES:
+          - Do NOT read files multiple times
+          - Do NOT explore - fix directly based on CI logs
+          - Do NOT read agent files unless absolutely necessary
+          - Use grep/glob for targeted searches only when needed
+          - NO exploratory reading after fixing (e.g., lefthook.yml)
+          - Focus on the specific failure, nothing else
+
+          CI ENVIRONMENT:
+          - NO venv activation needed - all tools installed globally
+          - pre-commit, black, flake8, ggshield, pytest already in PATH
+          - Do NOT run: source venv/bin/activate
+          - Do NOT run: pip install - dependencies already installed

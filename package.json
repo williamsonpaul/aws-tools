@@ -1,0 +1,18 @@
+{
+  "name": "git-guardian-ci-examples",
+  "version": "0.0.0",
+  "description": "Examples demonstrating Git Guardian integration in CI/CD workflows to prevent secrets from entering the codebase",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/reaandrew/git-guardian-ci-examples.git"
+  },
+  "keywords": [
+    "git-guardian",
+    "security",
+    "ci-cd",
+    "secrets-detection",
+    "conventional-commits"
+  ],
+  "author": "Andrew Rea",
+  "license": "MIT"
+}

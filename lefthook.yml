@@ -1,0 +1,65 @@
+# Lefthook configuration
+# Fast, powerful Git hooks manager
+
+pre-commit:
+  parallel: true
+  commands:
+    trailing-whitespace:
+      glob: "**/*"
+      exclude: "*.png|*.jpg|*.jpeg|*.gif|*.svg|*.ico"
+      run: |
+        for file in {staged_files}; do
+          sed -i 's/[[:space:]]*$//' "$file"
+          git add "$file"
+        done
+
+    end-of-file:
+      glob: "**/*"
+      exclude: "*.png|*.jpg|*.jpeg|*.gif|*.svg|*.ico|*.pyc"
+      run: |
+        for file in {staged_files}; do
+          if [ -f "$file" ] && [ -s "$file" ]; then
+            tail -c1 "$file" | read -r _ || (echo >> "$file" && git add "$file")
+          fi
+        done
+
+    black:
+      glob: "**/*.py"
+      run: black {staged_files} && git add {staged_files}
+
+    flake8:
+      glob: "**/*.py"
+      run: flake8 {staged_files}
+
+    yaml-check:
+      glob: "**/*.{yml,yaml}"
+      run: python -c "import yaml, sys; [yaml.safe_load(open(f)) for f in sys.argv[1:]]" {staged_files}
+
+    gitguardian:
+      skip:
+        - run: '[ -z "$GITGUARDIAN_API_KEY" ]'
+      run: ggshield secret scan pre-commit
+
+    pytest:
+      run: |
+        files=$(git diff --cached --name-only | grep -E '^(src/|tests/).*\.py$' || true)
+        if [ -n "$files" ]; then
+          python -B -m pytest -c pytest-precommit.ini -p no:cacheprovider
+        fi
+
+commit-msg:
+  commands:
+    conventional:
+      run: |
+        # Check conventional commit format
+        commit_regex='^(feat|fix|docs|style|refactor|perf|test|build|ci|chore|revert)(\(.+\))?!?: .+'
+        if ! grep -qE "$commit_regex" {1}; then
+          echo "Commit message must follow conventional format:"
+          echo "  <type>(<scope>)?: <description>"
+          echo "Types: feat, fix, docs, style, refactor, perf, test, build, ci, chore, revert"
+          exit 1
+        fi
+
+skip:
+  - merge
+  - rebase

@@ -1,0 +1,40 @@
+# Python virtual environment
+venv/
+.venv/
+
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Pre-commit cache
+.pre-commit-cache/
+.pre-commit/
+
+# Build and distribution files
+build/
+dist/
+*.egg-info/
+SOURCES.txt
+
+# Coverage reports
+htmlcov/
+.coverage
+coverage.xml
+.cache_ggshield
+
+# Pytest cache
+.pytest_cache/
+
+# Coverage cache files
+.coverage_precommit
