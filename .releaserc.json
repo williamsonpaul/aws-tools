@@ -29,5 +29,5 @@
     "@semantic-release/github"
   ],
   "tagFormat": "v${version}",
-  "repositoryUrl": "https://github.com/reaandrew/acronymcreator.git"
+  "repositoryUrl": "https://github.com/williamsonpaul/aws-tools.git"
 }
