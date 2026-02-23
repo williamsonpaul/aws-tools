@@ -41,4 +41,4 @@ repos:
         always_run: true
         files: '^(src/|tests/)'
         types: [python]
-        additional_dependencies: [pytest>=8.0.0, pytest-cov>=6.0.0, click>=8.0.0, pyyaml>=6.0.0, tomli-w>=1.0.0]
+        additional_dependencies: [pytest>=8.0.0, pytest-cov>=6.0.0, boto3>=1.26.0, click>=8.0.0]
