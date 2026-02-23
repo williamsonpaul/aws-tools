@@ -1,3 +1,9 @@
+## [1.0.1](https://github.com/williamsonpaul/aws-tools/compare/v1.0.0...v1.0.1) (2026-02-23)
+
+### Bug Fixes
+
+* bump dev dependency floor versions to resolve pip-audit CVEs ([#3](https://github.com/williamsonpaul/aws-tools/issues/3)) ([be9f497](https://github.com/williamsonpaul/aws-tools/commit/be9f497275edca8ebfc54ae0ba5e2185ad4aaa89))
+
 ## 1.0.0 (2026-02-23)
 
 ### Features
