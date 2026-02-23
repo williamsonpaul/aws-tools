@@ -110,9 +110,7 @@ def check(asg_name, refresh_id, region, interval, timeout):
     def _status_callback(refresh_dict):
         status = refresh_dict.get("Status", "Unknown")
         pct = refresh_dict.get("PercentageComplete", 0)
-        click.echo(
-            f"Status: {status} ({pct}% complete)", err=True
-        )
+        click.echo(f"Status: {status} ({pct}% complete)", err=True)
 
     refresher = ASGRefresh(region=region)
     try:
