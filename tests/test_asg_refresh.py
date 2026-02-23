@@ -2,7 +2,8 @@
 Tests for the ASG refresh core module.
 """
 
-from unittest.mock import MagicMock, patch
+import pytest
+from unittest.mock import MagicMock, patch, call
 from src.asg_refresh.core import ASGRefresh, RefreshOptions
 
 
@@ -125,3 +126,109 @@ class TestASGRefresh:
         result = refresher.describe_refresh("my-asg", "nonexistent-id")
 
         assert result == {}
+
+
+class TestWaitForRefresh:
+    """Test cases for the wait_for_refresh method."""
+
+    @patch("src.asg_refresh.core.time.sleep")
+    @patch("src.asg_refresh.core.boto3.client")
+    def test_immediate_success(self, mock_client, mock_sleep):
+        mock_asg = MagicMock()
+        mock_asg.describe_instance_refreshes.return_value = {
+            "InstanceRefreshes": [
+                {"InstanceRefreshId": "r-1", "Status": "Successful"}
+            ]
+        }
+        mock_client.return_value = mock_asg
+
+        refresher = ASGRefresh(region="us-east-1")
+        result = refresher.wait_for_refresh("my-asg", "r-1")
+
+        assert result["Status"] == "Successful"
+        mock_sleep.assert_not_called()
+
+    @patch("src.asg_refresh.core.time.sleep")
+    @patch("src.asg_refresh.core.boto3.client")
+    def test_poll_then_success(self, mock_client, mock_sleep):
+        mock_asg = MagicMock()
+        mock_asg.describe_instance_refreshes.side_effect = [
+            {"InstanceRefreshes": [{"Status": "InProgress", "PercentageComplete": 50}]},
+            {"InstanceRefreshes": [{"Status": "Successful", "PercentageComplete": 100}]},
+        ]
+        mock_client.return_value = mock_asg
+
+        refresher = ASGRefresh(region="us-east-1")
+        result = refresher.wait_for_refresh("my-asg", "r-1", interval=5, timeout=60)
+
+        assert result["Status"] == "Successful"
+        mock_sleep.assert_called_once_with(5)
+
+    @patch("src.asg_refresh.core.time.sleep")
+    @patch("src.asg_refresh.core.boto3.client")
+    def test_poll_then_failure(self, mock_client, mock_sleep):
+        mock_asg = MagicMock()
+        mock_asg.describe_instance_refreshes.side_effect = [
+            {"InstanceRefreshes": [{"Status": "InProgress"}]},
+            {"InstanceRefreshes": [{"Status": "Failed"}]},
+        ]
+        mock_client.return_value = mock_asg
+
+        refresher = ASGRefresh(region="us-east-1")
+        result = refresher.wait_for_refresh("my-asg", "r-1", interval=5, timeout=60)
+
+        assert result["Status"] == "Failed"
+
+    @patch("src.asg_refresh.core.time.sleep")
+    @patch("src.asg_refresh.core.boto3.client")
+    def test_timeout(self, mock_client, mock_sleep):
+        mock_asg = MagicMock()
+        mock_asg.describe_instance_refreshes.return_value = {
+            "InstanceRefreshes": [{"Status": "InProgress"}]
+        }
+        mock_client.return_value = mock_asg
+
+        refresher = ASGRefresh(region="us-east-1")
+        with pytest.raises(TimeoutError, match="Timed out after 10s"):
+            refresher.wait_for_refresh("my-asg", "r-1", interval=5, timeout=10)
+
+    @patch("src.asg_refresh.core.time.sleep")
+    @patch("src.asg_refresh.core.boto3.client")
+    def test_callback_invocation(self, mock_client, mock_sleep):
+        mock_asg = MagicMock()
+        mock_asg.describe_instance_refreshes.side_effect = [
+            {"InstanceRefreshes": [{"Status": "InProgress"}]},
+            {"InstanceRefreshes": [{"Status": "Successful"}]},
+        ]
+        mock_client.return_value = mock_asg
+
+        callback = MagicMock()
+        refresher = ASGRefresh(region="us-east-1")
+        refresher.wait_for_refresh(
+            "my-asg", "r-1", interval=5, timeout=60, status_callback=callback
+        )
+
+        assert callback.call_count == 2
+        callback.assert_any_call({"Status": "InProgress"})
+        callback.assert_any_call({"Status": "Successful"})
+
+    @patch("src.asg_refresh.core.time.sleep")
+    @patch("src.asg_refresh.core.boto3.client")
+    def test_all_terminal_states(self, mock_client, mock_sleep):
+        for state in [
+            "Successful",
+            "Failed",
+            "Cancelled",
+            "RollbackSuccessful",
+            "RollbackFailed",
+        ]:
+            mock_asg = MagicMock()
+            mock_asg.describe_instance_refreshes.return_value = {
+                "InstanceRefreshes": [{"Status": state}]
+            }
+            mock_client.return_value = mock_asg
+
+            refresher = ASGRefresh(region="us-east-1")
+            result = refresher.wait_for_refresh("my-asg", "r-1")
+            assert result["Status"] == state
+            mock_sleep.assert_not_called()

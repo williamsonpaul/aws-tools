@@ -2,6 +2,8 @@
 Core functionality for AWS ASG instance refresh.
 """
 
+import time
+
 import boto3
 from dataclasses import dataclass
 from typing import Optional
@@ -50,3 +52,35 @@ class ASGRefresh:
         if response["InstanceRefreshes"]:
             return response["InstanceRefreshes"][0]
         return {}
+
+    TERMINAL_STATES = {
+        "Successful",
+        "Failed",
+        "Cancelled",
+        "RollbackSuccessful",
+        "RollbackFailed",
+    }
+
+    def wait_for_refresh(
+        self, asg_name, refresh_id, interval=30, timeout=3600, status_callback=None
+    ):
+        """Poll describe_refresh until a terminal state or timeout.
+
+        Returns the final refresh dict on terminal state.
+        Raises TimeoutError if timeout exceeded.
+        Calls status_callback(refresh_dict) on each poll if provided.
+        """
+        elapsed = 0
+        while True:
+            result = self.describe_refresh(asg_name, refresh_id)
+            if status_callback:
+                status_callback(result)
+            status = result.get("Status", "")
+            if status in self.TERMINAL_STATES:
+                return result
+            if elapsed >= timeout:
+                raise TimeoutError(
+                    f"Timed out after {timeout}s waiting for refresh {refresh_id}"
+                )
+            time.sleep(interval)
+            elapsed += interval
