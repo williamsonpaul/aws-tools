@@ -3,19 +3,20 @@ requires = ["setuptools>=61.0", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "acronymcreator"
+name = "asg-refresh"
 version = "0.1.0"
-description = "A CLI tool for generating creative acronyms from phrases"
+description = "A CLI tool for initiating AWS Auto Scaling Group instance refreshes"
 readme = "README.md"
 requires-python = ">=3.8"
 license = {text = "MIT"}
 authors = [
     {name = "Demo App", email = "demo@example.com"}
 ]
-keywords = ["acronym", "cli", "text-processing", "generator"]
+keywords = ["aws", "autoscaling", "cli", "ec2", "instance-refresh"]
 classifiers = [
     "Development Status :: 3 - Alpha",
     "Intended Audience :: Developers",
+    "Intended Audience :: System Administrators",
     "License :: OSI Approved :: MIT License",
     "Operating System :: OS Independent",
     "Programming Language :: Python :: 3",
@@ -24,14 +25,12 @@ classifiers = [
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
-    "Topic :: Software Development :: Libraries :: Python Modules",
-    "Topic :: Text Processing",
+    "Topic :: System :: Systems Administration",
     "Topic :: Utilities",
 ]
 dependencies = [
+    "boto3>=1.26.0",
     "click>=8.0.0",
-    "pyyaml>=6.0.0",
-    "tomli-w>=1.0.0",
 ]
 
 [project.optional-dependencies]
@@ -40,15 +39,16 @@ dev = [
     "pytest-cov>=6.0.0",
     "pre-commit>=4.0.0",
     "ggshield>=1.40.0",
+    "boto3>=1.26.0",
 ]
 
 [project.urls]
-Homepage = "https://github.com/reaandrew/acronymcreator"
-Repository = "https://github.com/reaandrew/acronymcreator"
-Issues = "https://github.com/reaandrew/acronymcreator/issues"
+Homepage = "https://github.com/paulwilliamson/aws-tools"
+Repository = "https://github.com/paulwilliamson/aws-tools"
+Issues = "https://github.com/paulwilliamson/aws-tools/issues"
 
 [project.scripts]
-acronymcreator = "acronymcreator.cli:main"
+asg-refresh = "asg_refresh.cli:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]

@@ -1,2 +1,2 @@
-# Core production dependencies for acronymcreator
+boto3>=1.26.0
 click>=8.0.0
