@@ -1,3 +1,21 @@
+## [2.0.0](https://github.com/williamsonpaul/aws-tools/compare/v1.0.1...v2.0.0) (2026-02-23)
+
+### ⚠ BREAKING CHANGES
+
+* CLI now requires subcommand - use `asg-refresh start`
+instead of `asg-refresh` to start a refresh.
+
+Co-authored-by: paulwilliamson <jenratech@gmail.com>
+Co-authored-by: Claude Opus 4.6 <noreply@anthropic.com>
+
+### Features
+
+* add check subcommand to poll instance refresh completion ([f8721aa](https://github.com/williamsonpaul/aws-tools/commit/f8721aa4919c5816f3325c939cc2c7f6a0e833c1))
+
+### Bug Fixes
+
+* resolve flake8 unused import and line length violations ([#6](https://github.com/williamsonpaul/aws-tools/issues/6)) ([c446aa1](https://github.com/williamsonpaul/aws-tools/commit/c446aa15f8851dd2cfd5b5e701d3213dc632e674))
+
 ## [1.0.1](https://github.com/williamsonpaul/aws-tools/compare/v1.0.0...v1.0.1) (2026-02-23)
 
 ### Bug Fixes
