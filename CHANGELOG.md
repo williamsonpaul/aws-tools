@@ -1,3 +1,9 @@
+## [4.1.0](https://github.com/williamsonpaul/aws-tools/compare/v4.0.0...v4.1.0) (2026-02-24)
+
+### Features
+
+* add max-healthy-percentage flag and default skip-matching to true ([#9](https://github.com/williamsonpaul/aws-tools/issues/9)) ([ec5b88f](https://github.com/williamsonpaul/aws-tools/commit/ec5b88f158da343021488faf210b3781775aa5e6))
+
 ## [4.0.0](https://github.com/williamsonpaul/aws-tools/compare/v3.0.0...v4.0.0) (2026-02-24)
 
 ### ⚠ BREAKING CHANGES
