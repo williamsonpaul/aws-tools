@@ -8,9 +8,7 @@ A CLI tool for initiating and monitoring AWS Auto Scaling Group instance refresh
 
 ## Purpose
 
-This repository demonstrates GitGuardian integration in CI/CD workflows to prevent secrets from entering codebases. It serves as a template for teams implementing robust secret detection and automated release processes.
-
-The functional component is `aws-asg`: a Python CLI tool that triggers and monitors rolling instance refreshes on AWS Auto Scaling Groups using the boto3 SDK.
+`aws-asg` is a Python CLI tool that triggers and monitors rolling instance refreshes on AWS Auto Scaling Groups using the boto3 SDK. It provides a simple interface for starting refreshes and polling for completion, with JSON output suitable for scripting and CI/CD pipelines.
 
 ---
 
@@ -194,6 +192,17 @@ docker run --rm \
 docker run --rm \
   -v ~/.aws:/root/.aws:ro \
   -e AWS_DEFAULT_REGION=eu-west-1 \
+  aws-asg start my-asg
+```
+
+### Run with aws-vault
+
+```bash
+aws-vault exec my-profile -- docker run --rm \
+  -e AWS_ACCESS_KEY_ID \
+  -e AWS_SECRET_ACCESS_KEY \
+  -e AWS_SESSION_TOKEN \
+  -e AWS_DEFAULT_REGION \
   aws-asg start my-asg
 ```
 
