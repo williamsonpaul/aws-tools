@@ -67,6 +67,7 @@ func newRootCmd(factory refresherFactory) *cobra.Command {
 func newStartCmd(factory refresherFactory) *cobra.Command {
 	var (
 		minHealthyPct  int
+		maxHealthyPct  int
 		instanceWarmup int
 		skipMatching   bool
 		region         string
@@ -79,10 +80,15 @@ func newStartCmd(factory refresherFactory) *cobra.Command {
 
 ASG_NAME can also be set via the ASG_NAME environment variable.
 
+The --max-healthy-percentage flag controls the replacement method:
+  100 (default) = Terminate and launch (terminate old before launching new)
+  101-200       = Launch before termination (launch new before terminating old)
+
 Examples:
-  asg-refresh start my-asg
-  asg-refresh start my-asg --min-healthy-percentage 80
-  asg-refresh start my-asg --instance-warmup 300 --skip-matching`,
+  aws-asg start my-asg
+  aws-asg start my-asg --min-healthy-percentage 80
+  aws-asg start my-asg --max-healthy-percentage 110
+  aws-asg start my-asg --instance-warmup 300`,
 		Args: cobra.RangeArgs(0, 1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			asgName := argOrEnv(args, 0, "ASG_NAME")
@@ -103,6 +109,10 @@ Examples:
 				w := int32(instanceWarmup)
 				opts.InstanceWarmup = &w
 			}
+			if cmd.Flags().Changed("max-healthy-percentage") {
+				m := int32(maxHealthyPct)
+				opts.MaxHealthyPercentage = &m
+			}
 
 			result, err := r.StartRefresh(cmd.Context(), asgName, opts)
 			if err != nil {
@@ -113,8 +123,9 @@ Examples:
 	}
 
 	cmd.Flags().IntVar(&minHealthyPct, "min-healthy-percentage", envIntOrDefault("MIN_HEALTHY_PERCENTAGE", 90), "Minimum percentage of healthy instances during refresh")
+	cmd.Flags().IntVar(&maxHealthyPct, "max-healthy-percentage", 0, "Maximum percentage of healthy instances during refresh (100=terminate-and-launch, 101-200=launch-before-termination)")
 	cmd.Flags().IntVar(&instanceWarmup, "instance-warmup", 0, "Time in seconds until a new instance is considered warm")
-	cmd.Flags().BoolVar(&skipMatching, "skip-matching", false, "Skip instances already using the latest launch template")
+	cmd.Flags().BoolVar(&skipMatching, "skip-matching", true, "Skip instances already using the latest launch template")
 	cmd.Flags().StringVar(&region, "region", "", "AWS region (defaults to environment/instance profile)")
 
 	return cmd

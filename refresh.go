@@ -19,6 +19,7 @@ type AutoScalingAPI interface {
 // RefreshOptions configures an instance refresh.
 type RefreshOptions struct {
 	MinHealthyPercentage int
+	MaxHealthyPercentage *int32 // nil = use AWS default (100); >100 enables launch-before-termination
 	InstanceWarmup       *int32
 	SkipMatching         bool
 }
@@ -57,6 +58,9 @@ func (r *ASGRefresher) StartRefresh(ctx context.Context, asgName string, opts Re
 	}
 	if opts.InstanceWarmup != nil {
 		prefs.InstanceWarmup = opts.InstanceWarmup
+	}
+	if opts.MaxHealthyPercentage != nil {
+		prefs.MaxHealthyPercentage = opts.MaxHealthyPercentage
 	}
 
 	out, err := r.client.StartInstanceRefresh(ctx, &autoscaling.StartInstanceRefreshInput{
