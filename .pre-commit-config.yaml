@@ -14,17 +14,6 @@ repos:
       - id: check-yaml
       - id: check-added-large-files
 
-  - repo: https://github.com/psf/black
-    rev: 24.8.0
-    hooks:
-      - id: black
-        language_version: python3
-
-  - repo: https://github.com/pycqa/flake8
-    rev: 7.1.1
-    hooks:
-      - id: flake8
-
   - repo: https://github.com/gitguardian/ggshield
     rev: v1.40.0
     hooks:
@@ -33,12 +22,17 @@ repos:
 
   - repo: local
     hooks:
-      - id: pytest
+      - id: go-vet
+        name: go vet
+        entry: go vet ./...
+        language: system
+        pass_filenames: false
+        files: '\.go$'
+
+      - id: go-test
         name: Run tests with coverage
-        entry: python -B -m pytest -c pytest-precommit.ini -p no:cacheprovider
-        language: python
+        entry: go test -race -coverprofile=/tmp/coverage.out ./...
+        language: system
         pass_filenames: false
         always_run: true
-        files: '^(src/|tests/)'
-        types: [python]
-        additional_dependencies: [pytest>=8.0.0, pytest-cov>=6.0.0, boto3>=1.26.0, click>=8.0.0]
+        files: '\.go$'

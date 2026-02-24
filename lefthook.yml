@@ -15,7 +15,7 @@ pre-commit:
 
     end-of-file:
       glob: "**/*"
-      exclude: "*.png|*.jpg|*.jpeg|*.gif|*.svg|*.ico|*.pyc"
+      exclude: "*.png|*.jpg|*.jpeg|*.gif|*.svg|*.ico"
       run: |
         for file in {staged_files}; do
           if [ -f "$file" ] && [ -s "$file" ]; then
@@ -23,29 +23,18 @@ pre-commit:
           fi
         done
 
-    black:
-      glob: "**/*.py"
-      run: black {staged_files} && git add {staged_files}
+    go-vet:
+      glob: "**/*.go"
+      run: go vet ./...
 
-    flake8:
-      glob: "**/*.py"
-      run: flake8 {staged_files}
-
-    yaml-check:
-      glob: "**/*.{yml,yaml}"
-      run: python -c "import yaml, sys; [yaml.safe_load(open(f)) for f in sys.argv[1:]]" {staged_files}
+    go-test:
+      glob: "**/*.go"
+      run: go test -race ./...
 
     gitguardian:
       skip:
         - run: '[ -z "$GITGUARDIAN_API_KEY" ]'
       run: ggshield secret scan pre-commit
-
-    pytest:
-      run: |
-        files=$(git diff --cached --name-only | grep -E '^(src/|tests/).*\.py$' || true)
-        if [ -n "$files" ]; then
-          python -B -m pytest -c pytest-precommit.ini -p no:cacheprovider
-        fi
 
 commit-msg:
   commands:

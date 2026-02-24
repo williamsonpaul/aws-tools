@@ -21,6 +21,10 @@ Thumbs.db
 .pre-commit-cache/
 .pre-commit/
 
+# Go build output
+aws-asg
+aws-tools
+
 # Build and distribution files
 build/
 dist/
