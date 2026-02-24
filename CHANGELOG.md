@@ -1,3 +1,17 @@
+## [4.0.0](https://github.com/williamsonpaul/aws-tools/compare/v3.0.0...v4.0.0) (2026-02-24)
+
+### ⚠ BREAKING CHANGES
+
+* binary now requires go-style subcommands
+(asg-refresh start, asg-refresh check) — no change from v2 CLI shape
+
+Co-authored-by: paul <pauljohnwilliamson@gmail.com>
+Co-authored-by: Claude Sonnet 4.6 <noreply@anthropic.com>
+
+### Features
+
+* rewrite in Go with multi-stage Docker build ([#7](https://github.com/williamsonpaul/aws-tools/issues/7)) ([dc2bb04](https://github.com/williamsonpaul/aws-tools/commit/dc2bb04d7eafcd9750dc887b034bae6e5fc6e356))
+
 ## [3.0.0](https://github.com/williamsonpaul/aws-tools/compare/v2.0.0...v3.0.0) (2026-02-24)
 
 ### ⚠ BREAKING CHANGES
