@@ -1,14 +1,14 @@
 # aws-asg
 
-A CLI tool for initiating and monitoring AWS Auto Scaling Group instance refreshes, packaged as both a Python package and a Docker container.
+A CLI tool for initiating and monitoring AWS Auto Scaling Group instance refreshes, packaged as a static Go binary and a Docker container.
 
 [![CI](https://github.com/williamsonpaul/aws-tools/actions/workflows/ci.yml/badge.svg)](https://github.com/williamsonpaul/aws-tools/actions/workflows/ci.yml)
-[![Coverage](https://img.shields.io/badge/coverage-100%25-brightgreen)](https://github.com/williamsonpaul/aws-tools)
+[![Coverage](https://img.shields.io/badge/coverage-83%25-brightgreen)](https://github.com/williamsonpaul/aws-tools)
 [![Code Quality](https://img.shields.io/badge/code%20quality-A-brightgreen)](https://sonarcloud.io/dashboard?id=williamsonpaul_aws-tools)
 
 ## Purpose
 
-`aws-asg` is a Python CLI tool that triggers and monitors rolling instance refreshes on AWS Auto Scaling Groups using the boto3 SDK. It provides a simple interface for starting refreshes and polling for completion, with JSON output suitable for scripting and CI/CD pipelines.
+`aws-asg` is a Go CLI tool that triggers and monitors rolling instance refreshes on AWS Auto Scaling Groups using the AWS SDK for Go v2. It outputs JSON suitable for scripting and CI/CD pipelines.
 
 ---
 
@@ -33,22 +33,19 @@ A CLI tool for initiating and monitoring AWS Auto Scaling Group instance refresh
 ```bash
 git clone https://github.com/williamsonpaul/aws-tools.git
 cd aws-tools
-
-python3 -m venv venv
-source venv/bin/activate
-pip install -e .
+go build -o aws-asg .
 ```
 
 ### Run with Docker
 
 ```bash
-docker pull ghcr.io/williamsonpaul/aws-tools:latest
+docker build -t aws-asg .
 
 docker run --rm \
   -e AWS_ACCESS_KEY_ID \
   -e AWS_SECRET_ACCESS_KEY \
   -e AWS_DEFAULT_REGION \
-  ghcr.io/williamsonpaul/aws-tools:latest start my-asg
+  aws-asg start my-asg
 ```
 
 ---
@@ -65,16 +62,14 @@ Start a rolling instance refresh on an Auto Scaling Group.
 Usage: aws-asg start [OPTIONS] ASG_NAME
 
 Options:
-  --min-healthy-percentage INTEGER  Minimum percentage of healthy instances
-                                    during refresh  [default: 90]
-  --instance-warmup INTEGER         Time in seconds until a new instance is
-                                    considered warm
-  --skip-matching                   Skip instances already using the latest
-                                    launch template
-  --region TEXT                     AWS region (defaults to
-                                    environment/instance profile)
-  --help                            Show this message and exit.
-  
+  --min-healthy-percentage int   Minimum percentage of healthy instances
+                                 during refresh (default 90)
+  --instance-warmup int          Time in seconds until a new instance is
+                                 considered warm
+  --skip-matching                Skip instances already using the latest
+                                 launch template
+  --region string                AWS region (defaults to environment/instance profile)
+  --help                         Show this message and exit.
 ```
 
 #### Examples
@@ -111,16 +106,16 @@ aws-asg start prod-asg \
 
 ### `aws-asg check`
 
-Wait for an instance refresh to complete by polling until it reaches a terminal state. Status updates are printed to stderr; final JSON is written to stdout. Exits 0 on `Successful`, non-zero on `Failed`, `Cancelled`, or timeout.
+Wait for an instance refresh to complete by polling until it reaches a terminal state. Status updates are written to stderr; the final JSON is written to stdout. Exits 0 on `Successful`, non-zero on `Failed`, `Cancelled`, or timeout.
 
 ```
 Usage: aws-asg check [OPTIONS] ASG_NAME REFRESH_ID
 
 Options:
-  --region TEXT       AWS region (defaults to environment/instance profile)
-  --interval INTEGER  Polling interval in seconds  [default: 30]
-  --timeout INTEGER   Maximum wait time in seconds  [default: 3600]
-  --help              Show this message and exit.
+  --region string    AWS region (defaults to environment/instance profile)
+  --interval int     Polling interval in seconds (default 30)
+  --timeout int      Maximum wait time in seconds (default 3600)
+  --help             Show this message and exit.
 ```
 
 #### Examples
@@ -208,7 +203,7 @@ aws-vault exec my-profile -- docker run --rm \
 
 ### Run on EC2 with instance profile
 
-When running inside AWS (EC2, ECS, Lambda), boto3 picks up the instance profile automatically — no credentials needed:
+When running inside AWS (EC2, ECS, Lambda), the SDK picks up the instance profile automatically — no credentials needed:
 
 ```bash
 docker run --rm aws-asg start my-asg --region us-east-1
@@ -232,7 +227,7 @@ docker run --rm aws-asg start my-asg --region us-east-1
 
 - **Pre-commit GitGuardian**: Scans staged changes before commits
 - **CI Repository History Scan**: Scans entire git history for secrets
-- **Black + Flake8**: Consistent code style and PEP 8 compliance
+- **go vet + go test**: Static analysis and race-detector tests on every commit
 - **Test Coverage**: 80% minimum enforced at commit and in CI
 - **SonarCloud**: Code quality, security, and technical debt analysis
 - **Semgrep**: Static analysis for security vulnerabilities
@@ -240,11 +235,11 @@ docker run --rm aws-asg start my-asg --region us-east-1
 
 ### Six-Stage CI/CD Pipeline
 
-1. **Lint and Test**: Pre-commit hooks + test suite with coverage reports
+1. **Lint and Test**: `go vet` + `go test -race` with coverage report
 2. **GitGuardian History Scan**: Full repository secret detection across all commits
 3. **SonarCloud**: Quality gate enforcement (main branch only)
 4. **Semgrep**: Security vulnerability static analysis
-5. **Build**: Docker image build and validation
+5. **Build**: Docker image build and smoke test
 6. **Release**: Automated semantic versioning and GitHub releases (main branch only)
 
 ---
@@ -260,10 +255,9 @@ Developer Commit
 │   Pre-commit Hooks      │
 │  ─────────────────────  │
 │  • GitGuardian Scan     │
-│  • Test Coverage (80%)  │
+│  • go vet               │
+│  • go test -race        │
 │  • Conventional Commits │
-│  • Black Formatting     │
-│  • Flake8 Linting       │
 └─────────────────────────┘
     ↓
 ┌─────────────────────────┐
@@ -293,23 +287,20 @@ Automated Release
 
 ```
 aws-tools/
-├── src/aws_asg/             # Source code
-│   ├── __init__.py              # Package initialization
-│   ├── cli.py                   # Click CLI interface
-│   └── core.py                  # Core refresh logic (boto3)
-├── tests/                       # Test suite
-│   ├── test_aws_asg.py      # Core logic tests
-│   └── test_cli.py              # CLI tests
-├── Dockerfile                   # Container image definition
+├── main.go                      # CLI entry point (cobra commands)
+├── refresh.go                   # Core refresh logic (aws-sdk-go-v2)
+├── refresh_test.go              # Unit tests (31 tests, 83% coverage)
+├── go.mod                       # Go module definition
+├── go.sum                       # Dependency checksums
+├── Dockerfile                   # Multi-stage build (golang:1.23-alpine → alpine:3.21)
 ├── .dockerignore
 ├── .github/workflows/
 │   └── ci.yml                   # CI/CD pipeline (6 stages)
 ├── .claude/agents/              # Claude Code specialized agents
 ├── .pre-commit-config.yaml      # Pre-commit hook definitions
 ├── lefthook.yml                 # Lefthook configuration
-├── pyproject.toml               # Package configuration
-├── sonar-project.properties     # SonarCloud configuration
-└── .releaserc.json              # Semantic-release config
+├── sonar-project.properties     # SonarCloud project config
+└── .releaserc.json              # Semantic-release versioning rules
 ```
 
 ---
@@ -323,13 +314,12 @@ aws-tools/
 git clone https://github.com/williamsonpaul/aws-tools.git
 cd aws-tools
 
-# 2. Create virtual environment
-python3 -m venv venv
-source venv/bin/activate
-export PATH="$(pwd)/venv/bin:$PATH"
+# 2. Install Go (if not already installed)
+brew install go   # macOS
+# or: https://go.dev/dl/
 
-# 3. Install with dev dependencies
-pip install -e ".[dev]"
+# 3. Install Python tools for pre-commit and GitGuardian
+pip install pre-commit ggshield
 
 # 4. Install pre-commit hooks
 pre-commit install --install-hooks
@@ -339,48 +329,38 @@ pre-commit install --hook-type commit-msg
 export GITGUARDIAN_API_KEY=your_api_key_here
 
 # 6. Verify setup
+go build .
+go test -race ./...
 pre-commit run --all-files
 ```
 
 ### Running Tests
 
 ```bash
-source venv/bin/activate
-export PATH="$(pwd)/venv/bin:$PATH"
+# Run all tests with race detector
+go test -race ./...
 
-# Run all tests with coverage
-python -m pytest --cov=src --cov-report=term-missing --cov-fail-under=80
+# Run with coverage report
+go test -race -coverprofile=coverage.out ./...
+go tool cover -func=coverage.out
 
-# Run specific test file
-python -m pytest tests/test_aws_asg.py -v
-
-# Generate HTML coverage report
-python -m pytest --cov=src --cov-report=html
-open htmlcov/index.html
+# Run a specific test
+go test -run TestStartRefresh_Success ./...
 ```
 
 ### Development Workflow
 
 ```bash
-# 1. Set up environment (every terminal session)
-source venv/bin/activate
-export PATH="$(pwd)/venv/bin:$PATH"
-
-# 2. Create feature branch
+# 1. Create feature branch
 git checkout -b feat/new-feature
 
-# 3. Make changes and add tests (maintain ≥80% coverage)
+# 2. Make changes and add tests (maintain ≥80% coverage)
 
-# 4. Commit with conventional format (hooks run automatically)
+# 3. Commit with conventional format (hooks run automatically)
 git add .
 git commit -m "feat: add new feature"
 
-# 5. If hooks auto-fix files, stage and amend
-git status
-git add .
-git commit --amend --no-edit
-
-# 6. Push and create PR
+# 4. Push and create PR
 git push origin feat/new-feature
 gh pr create
 ```
@@ -392,9 +372,9 @@ gh pr create
 ### Pipeline Stages
 
 #### 1. Lint and Test
-- Re-runs all pre-commit hooks in a clean environment
-- Validates hooks weren't bypassed with `--no-verify`
-- Runs test suite with coverage and uploads reports
+- Runs `go vet ./...` and `go test -race -coverprofile=coverage.out ./...`
+- Also runs pre-commit hooks (GitGuardian, trailing whitespace, YAML checks)
+- Uploads `coverage.out` for SonarCloud
 
 #### 2. GitGuardian Repository History Scan
 - Scans the **entire git history** with `ggshield secret scan repo .`
@@ -410,7 +390,7 @@ gh pr create
 - Runs in parallel with SonarCloud
 
 #### 5. Build
-- `docker build` and `docker run --help` to validate the image
+- Multi-stage `docker build` and smoke test (`docker run --help`)
 
 #### 6. Release (main branch only)
 - Semantic-release analyses conventional commits
@@ -420,9 +400,9 @@ gh pr create
 
 | Commit Type | Version Bump |
 |-------------|--------------|
-| `feat:` | Minor (0.1.0 → 0.2.0) |
-| `fix:` | Patch (0.1.0 → 0.1.1) |
-| `feat!:` / `BREAKING CHANGE:` | Major (0.1.0 → 1.0.0) |
+| `feat:` | Minor (1.0.0 → 1.1.0) |
+| `fix:` | Patch (1.0.0 → 1.0.1) |
+| `feat!:` / `BREAKING CHANGE:` | Major (1.0.0 → 2.0.0) |
 | `docs:`, `ci:`, `chore:`, etc. | No release |
 
 ---
@@ -433,11 +413,9 @@ gh pr create
 
 | File | Purpose |
 |------|---------|
-| `lefthook.yml` | Primary git hooks (requires tools in PATH) |
+| `lefthook.yml` | Primary git hooks (`go vet`, `go test`, GitGuardian) |
 | `.pre-commit-config.yaml` | Alternative hooks with isolated environments |
-| `.coveragerc` | Coverage config (`fail_under = 80`) |
-| `pytest-precommit.ini` | Pytest config for pre-commit hook |
-| `pyproject.toml` | Package config, dependencies, entry points |
+| `go.mod` | Go module, dependencies and minimum versions |
 | `.github/workflows/ci.yml` | CI/CD pipeline definition |
 | `sonar-project.properties` | SonarCloud project config |
 | `.releaserc.json` | Semantic-release versioning rules |
@@ -447,7 +425,6 @@ gh pr create
 **Local Development**:
 ```bash
 export GITGUARDIAN_API_KEY=your_api_key_here
-export PATH="$(pwd)/venv/bin:$PATH"
 ```
 
 **CI/CD (GitHub Secrets)**:
@@ -460,18 +437,11 @@ export PATH="$(pwd)/venv/bin:$PATH"
 
 ## Troubleshooting
 
-### "flake8: not found" or "black: not found"
-
-Lefthook requires tools to be in PATH:
-```bash
-source venv/bin/activate
-export PATH="$(pwd)/venv/bin:$PATH"
-```
-
 ### Coverage Below 80%
 
 ```bash
-python -m pytest --cov=src --cov-report=term-missing
+go test -race -coverprofile=coverage.out ./...
+go tool cover -func=coverage.out
 # Add tests for uncovered lines, then re-run
 ```
 
@@ -512,8 +482,8 @@ MIT License — see [LICENSE](LICENSE) file for details.
 
 ## Built With
 
-- [boto3](https://boto3.amazonaws.com/v1/documentation/api/latest/index.html) — AWS SDK for Python
-- [Click](https://click.palletsprojects.com/) — CLI framework
+- [aws-sdk-go-v2](https://github.com/aws/aws-sdk-go-v2) — AWS SDK for Go
+- [cobra](https://github.com/spf13/cobra) — CLI framework
 - [GitGuardian](https://www.gitguardian.com/) — Secret detection
 - [SonarCloud](https://sonarcloud.io/) — Code quality analysis
 - [Semantic Release](https://semantic-release.gitbook.io/) — Automated versioning
