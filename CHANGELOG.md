@@ -1,3 +1,16 @@
+## [3.0.0](https://github.com/williamsonpaul/aws-tools/compare/v2.0.0...v3.0.0) (2026-02-24)
+
+### ⚠ BREAKING CHANGES
+
+* CLI command changed from `asg-refresh` to `aws-asg`.
+All imports changed from `asg_refresh` to `aws_asg`.
+
+Co-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>
+
+### Features
+
+* rename package from asg-refresh to aws-asg ([e34dfef](https://github.com/williamsonpaul/aws-tools/commit/e34dfef3c5421f92efd436b770665bc5fd89f5cb))
+
 ## [2.0.0](https://github.com/williamsonpaul/aws-tools/compare/v1.0.1...v2.0.0) (2026-02-23)
 
 ### ⚠ BREAKING CHANGES
