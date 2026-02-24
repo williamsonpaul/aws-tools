@@ -70,18 +70,21 @@ func TestStartRefresh_DefaultPreferences(t *testing.T) {
 			return &autoscaling.StartInstanceRefreshOutput{InstanceRefreshId: aws.String("id")}, nil
 		},
 	}
-	_, err := newTestRefresher(mock).StartRefresh(context.Background(), "asg", RefreshOptions{MinHealthyPercentage: 90, SkipMatching: false})
+	_, err := newTestRefresher(mock).StartRefresh(context.Background(), "asg", RefreshOptions{MinHealthyPercentage: 90, SkipMatching: true})
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 	if *got.Preferences.MinHealthyPercentage != 90 {
 		t.Errorf("expected 90, got %d", *got.Preferences.MinHealthyPercentage)
 	}
-	if *got.Preferences.SkipMatching {
-		t.Error("expected SkipMatching=false")
+	if !*got.Preferences.SkipMatching {
+		t.Error("expected SkipMatching=true")
 	}
 	if got.Preferences.InstanceWarmup != nil {
 		t.Errorf("expected nil InstanceWarmup, got %v", got.Preferences.InstanceWarmup)
+	}
+	if got.Preferences.MaxHealthyPercentage != nil {
+		t.Errorf("expected nil MaxHealthyPercentage, got %v", got.Preferences.MaxHealthyPercentage)
 	}
 }
 
@@ -94,8 +97,10 @@ func TestStartRefresh_WithAllOptions(t *testing.T) {
 		},
 	}
 	warmup := int32(300)
+	maxPct := int32(110)
 	_, err := newTestRefresher(mock).StartRefresh(context.Background(), "asg", RefreshOptions{
 		MinHealthyPercentage: 80,
+		MaxHealthyPercentage: &maxPct,
 		InstanceWarmup:       &warmup,
 		SkipMatching:         true,
 	})
@@ -105,11 +110,35 @@ func TestStartRefresh_WithAllOptions(t *testing.T) {
 	if *got.Preferences.MinHealthyPercentage != 80 {
 		t.Errorf("expected 80, got %d", *got.Preferences.MinHealthyPercentage)
 	}
+	if got.Preferences.MaxHealthyPercentage == nil || *got.Preferences.MaxHealthyPercentage != 110 {
+		t.Errorf("expected MaxHealthyPercentage=110, got %v", got.Preferences.MaxHealthyPercentage)
+	}
 	if got.Preferences.InstanceWarmup == nil || *got.Preferences.InstanceWarmup != 300 {
 		t.Errorf("expected InstanceWarmup=300, got %v", got.Preferences.InstanceWarmup)
 	}
 	if !*got.Preferences.SkipMatching {
 		t.Error("expected SkipMatching=true")
+	}
+}
+
+func TestStartRefresh_WithMaxHealthyPercentage(t *testing.T) {
+	var got *autoscaling.StartInstanceRefreshInput
+	mock := &mockASClient{
+		startFn: func(_ context.Context, params *autoscaling.StartInstanceRefreshInput, _ ...func(*autoscaling.Options)) (*autoscaling.StartInstanceRefreshOutput, error) {
+			got = params
+			return &autoscaling.StartInstanceRefreshOutput{InstanceRefreshId: aws.String("id")}, nil
+		},
+	}
+	maxPct := int32(200)
+	_, err := newTestRefresher(mock).StartRefresh(context.Background(), "asg", RefreshOptions{
+		MinHealthyPercentage: 90,
+		MaxHealthyPercentage: &maxPct,
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if got.Preferences.MaxHealthyPercentage == nil || *got.Preferences.MaxHealthyPercentage != 200 {
+		t.Errorf("expected MaxHealthyPercentage=200, got %v", got.Preferences.MaxHealthyPercentage)
 	}
 }
 
@@ -293,6 +322,24 @@ func TestStartCommand_Success(t *testing.T) {
 	}
 }
 
+func TestStartCommand_DefaultSkipMatching(t *testing.T) {
+	var got *autoscaling.StartInstanceRefreshInput
+	mock := &mockASClient{
+		startFn: func(_ context.Context, params *autoscaling.StartInstanceRefreshInput, _ ...func(*autoscaling.Options)) (*autoscaling.StartInstanceRefreshOutput, error) {
+			got = params
+			return &autoscaling.StartInstanceRefreshOutput{InstanceRefreshId: aws.String("id")}, nil
+		},
+	}
+	root := newRootCmd(makeFactory(mock))
+	root.SetArgs([]string{"start", "my-asg"})
+	if err := root.Execute(); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !*got.Preferences.SkipMatching {
+		t.Error("expected SkipMatching=true by default")
+	}
+}
+
 func TestStartCommand_WithOptions(t *testing.T) {
 	var got *autoscaling.StartInstanceRefreshInput
 	mock := &mockASClient{
@@ -302,7 +349,7 @@ func TestStartCommand_WithOptions(t *testing.T) {
 		},
 	}
 	root := newRootCmd(makeFactory(mock))
-	root.SetArgs([]string{"start", "my-asg", "--min-healthy-percentage", "80", "--instance-warmup", "300", "--skip-matching"})
+	root.SetArgs([]string{"start", "my-asg", "--min-healthy-percentage", "80", "--instance-warmup", "300", "--skip-matching=false"})
 	if err := root.Execute(); err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -312,8 +359,44 @@ func TestStartCommand_WithOptions(t *testing.T) {
 	if got.Preferences.InstanceWarmup == nil || *got.Preferences.InstanceWarmup != 300 {
 		t.Errorf("expected InstanceWarmup=300, got %v", got.Preferences.InstanceWarmup)
 	}
-	if !*got.Preferences.SkipMatching {
-		t.Error("expected SkipMatching=true")
+	if *got.Preferences.SkipMatching {
+		t.Error("expected SkipMatching=false when explicitly set")
+	}
+}
+
+func TestStartCommand_MaxHealthyPercentage(t *testing.T) {
+	var got *autoscaling.StartInstanceRefreshInput
+	mock := &mockASClient{
+		startFn: func(_ context.Context, params *autoscaling.StartInstanceRefreshInput, _ ...func(*autoscaling.Options)) (*autoscaling.StartInstanceRefreshOutput, error) {
+			got = params
+			return &autoscaling.StartInstanceRefreshOutput{InstanceRefreshId: aws.String("id")}, nil
+		},
+	}
+	root := newRootCmd(makeFactory(mock))
+	root.SetArgs([]string{"start", "my-asg", "--max-healthy-percentage", "110"})
+	if err := root.Execute(); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if got.Preferences.MaxHealthyPercentage == nil || *got.Preferences.MaxHealthyPercentage != 110 {
+		t.Errorf("expected MaxHealthyPercentage=110, got %v", got.Preferences.MaxHealthyPercentage)
+	}
+}
+
+func TestStartCommand_MaxHealthyPercentageNotSetByDefault(t *testing.T) {
+	var got *autoscaling.StartInstanceRefreshInput
+	mock := &mockASClient{
+		startFn: func(_ context.Context, params *autoscaling.StartInstanceRefreshInput, _ ...func(*autoscaling.Options)) (*autoscaling.StartInstanceRefreshOutput, error) {
+			got = params
+			return &autoscaling.StartInstanceRefreshOutput{InstanceRefreshId: aws.String("id")}, nil
+		},
+	}
+	root := newRootCmd(makeFactory(mock))
+	root.SetArgs([]string{"start", "my-asg"})
+	if err := root.Execute(); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if got.Preferences.MaxHealthyPercentage != nil {
+		t.Errorf("expected nil MaxHealthyPercentage by default, got %v", got.Preferences.MaxHealthyPercentage)
 	}
 }
 
