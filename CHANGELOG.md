@@ -2,8 +2,8 @@
 
 ### ⚠ BREAKING CHANGES
 
-* CLI now requires subcommand - use `asg-refresh start`
-instead of `asg-refresh` to start a refresh.
+* CLI now requires subcommand - use `aws-asg start`
+instead of `aws-asg` to start a refresh.
 
 Co-authored-by: paulwilliamson <jenratech@gmail.com>
 Co-authored-by: Claude Opus 4.6 <noreply@anthropic.com>

@@ -52,11 +52,11 @@ def start(asg_name, min_healthy_percentage, instance_warmup, skip_matching, regi
 
     Examples:
 
-        asg-refresh start my-asg
+        aws-asg start my-asg
 
-        asg-refresh start my-asg --min-healthy-percentage 80
+        aws-asg start my-asg --min-healthy-percentage 80
 
-        asg-refresh start my-asg --instance-warmup 300 --skip-matching
+        aws-asg start my-asg --instance-warmup 300 --skip-matching
     """
     refresher = ASGRefresh(region=region)
     options = RefreshOptions(
@@ -102,9 +102,9 @@ def check(asg_name, refresh_id, region, interval, timeout):
 
     Examples:
 
-        asg-refresh check my-asg abc-123
+        aws-asg check my-asg abc-123
 
-        asg-refresh check my-asg abc-123 --interval 10 --timeout 600
+        aws-asg check my-asg abc-123 --interval 10 --timeout 600
     """
 
     def _status_callback(refresh_dict):

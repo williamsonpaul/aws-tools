@@ -1,4 +1,4 @@
-# asg-refresh
+# aws-asg
 
 A CLI tool for initiating and monitoring AWS Auto Scaling Group instance refreshes, packaged as both a Python package and a Docker container.
 
@@ -10,7 +10,7 @@ A CLI tool for initiating and monitoring AWS Auto Scaling Group instance refresh
 
 This repository demonstrates GitGuardian integration in CI/CD workflows to prevent secrets from entering codebases. It serves as a template for teams implementing robust secret detection and automated release processes.
 
-The functional component is `asg-refresh`: a Python CLI tool that triggers and monitors rolling instance refreshes on AWS Auto Scaling Groups using the boto3 SDK.
+The functional component is `aws-asg`: a Python CLI tool that triggers and monitors rolling instance refreshes on AWS Auto Scaling Groups using the boto3 SDK.
 
 ---
 
@@ -57,14 +57,14 @@ docker run --rm \
 
 ## CLI Usage
 
-`asg-refresh` has two subcommands: `start` and `check`.
+`aws-asg` has two subcommands: `start` and `check`.
 
-### `asg-refresh start`
+### `aws-asg start`
 
 Start a rolling instance refresh on an Auto Scaling Group.
 
 ```
-Usage: asg-refresh start [OPTIONS] ASG_NAME
+Usage: aws-asg start [OPTIONS] ASG_NAME
 
 Options:
   --min-healthy-percentage INTEGER  Minimum percentage of healthy instances
@@ -76,25 +76,26 @@ Options:
   --region TEXT                     AWS region (defaults to
                                     environment/instance profile)
   --help                            Show this message and exit.
+  
 ```
 
 #### Examples
 
 ```bash
 # Basic refresh with defaults (90% min healthy)
-asg-refresh start my-asg
+aws-asg start my-asg
 
 # Custom min-healthy-percentage
-asg-refresh start my-asg --min-healthy-percentage 80
+aws-asg start my-asg --min-healthy-percentage 80
 
 # With instance warmup and skip-matching
-asg-refresh start my-asg --instance-warmup 300 --skip-matching
+aws-asg start my-asg --instance-warmup 300 --skip-matching
 
 # Specify region
-asg-refresh start my-asg --region eu-west-1
+aws-asg start my-asg --region eu-west-1
 
 # All options
-asg-refresh start prod-asg \
+aws-asg start prod-asg \
   --min-healthy-percentage 75 \
   --instance-warmup 120 \
   --skip-matching \
@@ -110,12 +111,12 @@ asg-refresh start prod-asg \
 }
 ```
 
-### `asg-refresh check`
+### `aws-asg check`
 
 Wait for an instance refresh to complete by polling until it reaches a terminal state. Status updates are printed to stderr; final JSON is written to stdout. Exits 0 on `Successful`, non-zero on `Failed`, `Cancelled`, or timeout.
 
 ```
-Usage: asg-refresh check [OPTIONS] ASG_NAME REFRESH_ID
+Usage: aws-asg check [OPTIONS] ASG_NAME REFRESH_ID
 
 Options:
   --region TEXT       AWS region (defaults to environment/instance profile)
@@ -128,15 +129,15 @@ Options:
 
 ```bash
 # Wait for a refresh to complete
-asg-refresh check my-asg 08b91e03-1234-abcd-efgh-f3ea4912b73c
+aws-asg check my-asg 08b91e03-1234-abcd-efgh-f3ea4912b73c
 
 # Custom polling interval and timeout
-asg-refresh check my-asg 08b91e03-1234-abcd-efgh-f3ea4912b73c \
+aws-asg check my-asg 08b91e03-1234-abcd-efgh-f3ea4912b73c \
   --interval 10 --timeout 600
 
 # Start and then wait in a CI pipeline
-REFRESH=$(asg-refresh start my-asg | jq -r .InstanceRefreshId)
-asg-refresh check my-asg "$REFRESH"
+REFRESH=$(aws-asg start my-asg | jq -r .InstanceRefreshId)
+aws-asg check my-asg "$REFRESH"
 ```
 
 ### Environment Variables
@@ -158,7 +159,7 @@ All options can be set via environment variables:
 export ASG_NAME=my-asg
 export MIN_HEALTHY_PERCENTAGE=80
 export AWS_DEFAULT_REGION=us-east-1
-asg-refresh start
+aws-asg start
 ```
 
 ---
@@ -168,7 +169,7 @@ asg-refresh start
 ### Build locally
 
 ```bash
-docker build -t asg-refresh .
+docker build -t aws-asg .
 ```
 
 ### Run with AWS credentials
@@ -179,7 +180,7 @@ docker run --rm \
   -e AWS_ACCESS_KEY_ID=AKIA... \
   -e AWS_SECRET_ACCESS_KEY=... \
   -e AWS_DEFAULT_REGION=us-east-1 \
-  asg-refresh start my-asg
+  aws-asg start my-asg
 
 # Forwarding credentials from the host environment
 docker run --rm \
@@ -187,13 +188,13 @@ docker run --rm \
   -e AWS_SECRET_ACCESS_KEY \
   -e AWS_SESSION_TOKEN \
   -e AWS_DEFAULT_REGION \
-  asg-refresh start my-asg --min-healthy-percentage 80
+  aws-asg start my-asg --min-healthy-percentage 80
 
 # Using an AWS credentials file
 docker run --rm \
   -v ~/.aws:/root/.aws:ro \
   -e AWS_DEFAULT_REGION=eu-west-1 \
-  asg-refresh start my-asg
+  aws-asg start my-asg
 ```
 
 ### Run on EC2 with instance profile
@@ -201,7 +202,7 @@ docker run --rm \
 When running inside AWS (EC2, ECS, Lambda), boto3 picks up the instance profile automatically — no credentials needed:
 
 ```bash
-docker run --rm asg-refresh start my-asg --region us-east-1
+docker run --rm aws-asg start my-asg --region us-east-1
 ```
 
 ---
@@ -283,12 +284,12 @@ Automated Release
 
 ```
 aws-tools/
-├── src/asg_refresh/             # Source code
+├── src/aws_asg/             # Source code
 │   ├── __init__.py              # Package initialization
 │   ├── cli.py                   # Click CLI interface
 │   └── core.py                  # Core refresh logic (boto3)
 ├── tests/                       # Test suite
-│   ├── test_asg_refresh.py      # Core logic tests
+│   ├── test_aws_asg.py      # Core logic tests
 │   └── test_cli.py              # CLI tests
 ├── Dockerfile                   # Container image definition
 ├── .dockerignore
@@ -342,7 +343,7 @@ export PATH="$(pwd)/venv/bin:$PATH"
 python -m pytest --cov=src --cov-report=term-missing --cov-fail-under=80
 
 # Run specific test file
-python -m pytest tests/test_asg_refresh.py -v
+python -m pytest tests/test_aws_asg.py -v
 
 # Generate HTML coverage report
 python -m pytest --cov=src --cov-report=html

@@ -5,7 +5,7 @@ Tests for the ASG refresh CLI.
 import json
 from unittest.mock import MagicMock, patch
 from click.testing import CliRunner
-from src.asg_refresh.cli import main
+from src.aws_asg.cli import main
 
 
 class TestStartCommand:
@@ -14,7 +14,7 @@ class TestStartCommand:
     def setup_method(self):
         self.runner = CliRunner()
 
-    @patch("src.asg_refresh.cli.ASGRefresh")
+    @patch("src.aws_asg.cli.ASGRefresh")
     def test_basic_invocation(self, mock_refresher_class):
         mock_refresher = MagicMock()
         mock_refresher.start_refresh.return_value = {
@@ -31,7 +31,7 @@ class TestStartCommand:
         assert output["AutoScalingGroupName"] == "my-asg"
         mock_refresher_class.assert_called_once_with(region=None)
 
-    @patch("src.asg_refresh.cli.ASGRefresh")
+    @patch("src.aws_asg.cli.ASGRefresh")
     def test_with_all_options(self, mock_refresher_class):
         mock_refresher = MagicMock()
         mock_refresher.start_refresh.return_value = {
@@ -66,7 +66,7 @@ class TestStartCommand:
         assert "Auto Scaling Group" in result.output
         assert "ASG_NAME" in result.output
 
-    @patch("src.asg_refresh.cli.ASGRefresh")
+    @patch("src.aws_asg.cli.ASGRefresh")
     def test_env_var_asg_name(self, mock_refresher_class):
         mock_refresher = MagicMock()
         mock_refresher.start_refresh.return_value = {
@@ -79,7 +79,7 @@ class TestStartCommand:
 
         assert result.exit_code == 0
 
-    @patch("src.asg_refresh.cli.ASGRefresh")
+    @patch("src.aws_asg.cli.ASGRefresh")
     def test_default_options_passed_to_refresh(self, mock_refresher_class):
         mock_refresher = MagicMock()
         mock_refresher.start_refresh.return_value = {
@@ -96,7 +96,7 @@ class TestStartCommand:
         assert options_arg.instance_warmup is None
         assert options_arg.skip_matching is False
 
-    @patch("src.asg_refresh.cli.ASGRefresh")
+    @patch("src.aws_asg.cli.ASGRefresh")
     def test_skip_matching_flag(self, mock_refresher_class):
         mock_refresher = MagicMock()
         mock_refresher.start_refresh.return_value = {
@@ -119,7 +119,7 @@ class TestCheckCommand:
     def setup_method(self):
         self.runner = CliRunner()
 
-    @patch("src.asg_refresh.cli.ASGRefresh")
+    @patch("src.aws_asg.cli.ASGRefresh")
     def test_check_success(self, mock_refresher_class):
         mock_refresher = MagicMock()
         mock_refresher.wait_for_refresh.return_value = {
@@ -136,7 +136,7 @@ class TestCheckCommand:
         assert output["Status"] == "Successful"
         mock_refresher_class.assert_called_once_with(region=None)
 
-    @patch("src.asg_refresh.cli.ASGRefresh")
+    @patch("src.aws_asg.cli.ASGRefresh")
     def test_check_failure_exits_nonzero(self, mock_refresher_class):
         mock_refresher = MagicMock()
         mock_refresher.wait_for_refresh.return_value = {
@@ -149,7 +149,7 @@ class TestCheckCommand:
 
         assert result.exit_code == 1
 
-    @patch("src.asg_refresh.cli.ASGRefresh")
+    @patch("src.aws_asg.cli.ASGRefresh")
     def test_check_timeout_exits_nonzero(self, mock_refresher_class):
         mock_refresher = MagicMock()
         mock_refresher.wait_for_refresh.side_effect = TimeoutError("Timed out")
@@ -167,7 +167,7 @@ class TestCheckCommand:
         assert "--interval" in result.output
         assert "--timeout" in result.output
 
-    @patch("src.asg_refresh.cli.ASGRefresh")
+    @patch("src.aws_asg.cli.ASGRefresh")
     def test_check_with_options(self, mock_refresher_class):
         mock_refresher = MagicMock()
         mock_refresher.wait_for_refresh.return_value = {

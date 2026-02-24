@@ -10,4 +10,4 @@ COPY pyproject.toml setup.py ./
 
 RUN pip install --no-cache-dir -e .
 
-ENTRYPOINT ["asg-refresh"]
+ENTRYPOINT ["aws-asg"]
