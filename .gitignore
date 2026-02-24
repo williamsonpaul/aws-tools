@@ -1,12 +1,3 @@
-# Python virtual environment
-venv/
-.venv/
-
-# Python cache
-__pycache__/
-*.py[cod]
-*$py.class
-
 # IDE files
 .vscode/
 .idea/
@@ -17,28 +8,25 @@ __pycache__/
 .DS_Store
 Thumbs.db
 
-# Pre-commit cache
-.pre-commit-cache/
-.pre-commit/
-
 # Go build output
 aws-asg
 aws-tools
 
-# Build and distribution files
-build/
-dist/
-*.egg-info/
-SOURCES.txt
+# Go test coverage
+coverage.out
 
-# Coverage reports
-htmlcov/
-.coverage
-coverage.xml
-.cache_ggshield
-
-# Pytest cache
+# Python tools (pre-commit / ggshield)
+venv/
+.venv/
+__pycache__/
+*.py[cod]
+.pre-commit-cache/
+.pre-commit/
 .pytest_cache/
-
-# Coverage cache files
+.coverage
 .coverage_precommit
+htmlcov/
+coverage.xml
+
+# GitGuardian cache
+.cache_ggshield
